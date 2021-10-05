@@ -1,37 +1,40 @@
 import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import axios from "axios";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
   Image,
   Pressable,
+  Dimensions,
+  KeyboardAvoidingView,
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { TextInput } from "react-native-gesture-handler";
-// import { loginCall } from "../../apiCalls";
-import Button from "../../components/Button";
-// import { useDispatch, useSelector } from "react-redux";
-import { styles } from "./styles";
 import * as Device from "expo-device";
-import axios from "axios";
+
+import { ScrollView, TextInput } from "react-native-gesture-handler";
+import Button from "../../components/Button";
+import { styles } from "./styles";
+import { RootStackScreenProps } from "../../types";
 
 const logo = require("../../assets/images/logos/blue.png");
 
-export default function LoginScreen() {
-  const navigation = useNavigation();
+export default function ResetPassword({
+  route,
+}: RootStackScreenProps<"Reset Password">) {
   const [client_email, setClientEmail] = useState("");
-  const [email_validation_message, setEmailValidationMessage] = useState(
-    null || ""
-  );
+  const [email_validation_message, setEmailValidationMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [password_validation_message, setPasswordValidationMessage] = useState(
-    null || ""
+    ""
   );
-  const [isLoading, setLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  // const dispatch = useDispatch();
-  // const user = useSelector((state) => state.user.user);
+  const [password_confirmation, setPasswordConfirmation] = useState("");
+
+  const navigation = useNavigation();
+  const reset_token = route.params?.reset_token;
 
   const verifyField = (field: string) => {
     switch (field) {
@@ -44,85 +47,71 @@ export default function LoginScreen() {
             setIsError(true);
           } else {
             setIsError(false);
-            setEmailValidationMessage("");
           }
         } else {
           setEmailValidationMessage("Email should be more than 3 characters!");
           setIsError(true);
         }
         break;
-
       case "password":
         if (password.length < 1) {
           setPasswordValidationMessage("Password field is compulsory!");
           setIsError(true);
-        } else {
-          setPasswordValidationMessage("");
-          setIsError(false);
+        }
+        if (password !== password_confirmation) {
+          setPasswordValidationMessage("Password doesn't match!");
+          setIsError(true);
         }
         break;
     }
   };
 
-  const handleLogin = async () => {
-    // loginCall({ client_email, password });
-    // // console.log(user);
+  const handleResetPassword = async () => {
     try {
       if (isError == false) {
-        setLoading(true);
-        let device_name = Device.modelName;
+        setIsLoading(true);
         let userCredentials = {
           client_email,
+          reset_token,
           password,
-
-          device_name,
+          password_confirmation,
         };
-        let headers = {
+        const headers = {
           Client_Secret: "Ku0DjUFHdGUUbvEkHqv975WLPQv5DJYpK6k",
           App_No: "07fix32665",
-          Resource_Code: "301",
+          Resource_Code: "303",
         };
-
         const response = await axios.post(
-          "https://backend.bitmoservice.com/api/resources/v1/client/login",
+          "https://backend.bitmoservice.com/api/resources/v1/client/rpw",
           userCredentials,
           { headers: headers }
         );
-
         if (response.data.status == true) {
-          Alert.alert("Success!", response.data.message, [
+          Alert.alert("SUCCESS!", response.data.message, [
             {
               text: "Alright Thanks",
-              onPress: () => navigation.navigate("HomeScreen"),
+              onPress: () => navigation.navigate("Login"),
             },
           ]);
-        } else {
-          Alert.alert("Error!", response.data.message, [
-            {
-              text: "Oops! Aiit",
-            },
-          ]);
+          navigation.navigate("Login");
         }
-
-        // } else {
-        //   Alert.alert("Error!", response.data.message);
-        // }
-
         setClientEmail("");
-
         setPassword("");
-
-        setLoading(false);
-
-        console.log(response.data);
+        setPasswordConfirmation("");
+        setIsLoading(false);
+        console.log(response);
       }
     } catch (e) {
       console.log(e);
     }
   };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.wrapper}>
+    <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={[styles.wrapper, { marginTop: -2 }]}
+      >
         <View style={styles.authTop}>
           <Image source={logo} style={styles.logo} />
         </View>
@@ -144,22 +133,28 @@ export default function LoginScreen() {
           )}
 
           <TextInput
-            secureTextEntry={true}
             placeholder="Password"
             placeholderTextColor="#303030"
             style={styles.authInput}
             value={password}
             onChangeText={setPassword}
-            onEndEditing={() => verifyField("email")}
+            onEndEditing={() => verifyField("password")}
           />
           {isError && (
             <Text style={{ color: "red", fontFamily: "monospace" }}>
               {password_validation_message}
             </Text>
           )}
+          <TextInput
+            placeholder="Confirm Password"
+            placeholderTextColor="#303030"
+            style={styles.authInput}
+            value={password_confirmation}
+            onChangeText={setPasswordConfirmation}
+          />
+
           {isLoading ? (
             <Pressable
-              onPress={handleLogin}
               style={{
                 backgroundColor: "#00709e",
                 height: 38,
@@ -173,7 +168,7 @@ export default function LoginScreen() {
             </Pressable>
           ) : (
             <Pressable
-              onPress={handleLogin}
+              onPress={handleResetPassword}
               style={({ pressed }) => [
                 {
                   opacity: pressed ? 0.5 : 1,
@@ -186,13 +181,23 @@ export default function LoginScreen() {
                 },
               ]}
             >
-              <Text style={{ color: "#fff", fontSize: 19 }}>Login</Text>
+              <Text style={{ color: "#fff", fontSize: 19 }}>Sign Up</Text>
             </Pressable>
           )}
-          {/* <Button title="Login" /> */}
+
+          <View
+            style={{
+              width: Dimensions.get("screen").width / 2,
+              height: 0.5,
+              alignSelf: "center",
+              marginTop: 20,
+              marginBottom: -5,
+              backgroundColor: "#303030",
+            }}
+          />
 
           <Pressable
-            onPress={() => navigation.navigate("SignUp")}
+            onPress={() => navigation.navigate("Login")}
             style={({ pressed }) => [
               {
                 opacity: pressed ? 0.5 : 1,
@@ -205,23 +210,10 @@ export default function LoginScreen() {
               },
             ]}
           >
-            <Text style={{ color: "#fff", fontSize: 19 }}>Sign Up</Text>
+            <Text style={{ color: "#fff", fontSize: 19 }}>Login</Text>
           </Pressable>
-
-          <View style={{ marginTop: 20, alignItems: "center" }}>
-            <Text style={{ fontWeight: "bold", fontSize: 18 }}>OR</Text>
-
-            <View style={{ flexDirection: "row" }}>
-              <Text style={{ fontSize: 18 }}>Forgotten Password?</Text>
-              <Pressable onPress={() => navigation.navigate("Recover Account")}>
-                <Text style={{ fontSize: 18, marginLeft: 8, color: "#0000ee" }}>
-                  Reset here
-                </Text>
-              </Pressable>
-            </View>
-          </View>
         </View>
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </ScrollView>
   );
 }
